@@ -1,0 +1,118 @@
+{
+  "ranked_features": [
+    {
+      "rank": 1,
+      "feature": "sensor_11",
+      "official_description": "Static Pressure at HPC Outlet (psia)",
+      "importance": 0.603621
+    },
+    {
+      "rank": 2,
+      "feature": "sensor_9",
+      "official_description": "Physical Core Speed (rpm)",
+      "importance": 0.131431
+    },
+    {
+      "rank": 3,
+      "feature": "sensor_4",
+      "official_description": "Total Temperature at LPT Outlet (\u00b0R)",
+      "importance": 0.078869
+    },
+    {
+      "rank": 4,
+      "feature": "sensor_12",
+      "official_description": "Ratio of Fuel Flow to Ps30 (pps/psia)",
+      "importance": 0.030834
+    },
+    {
+      "rank": 5,
+      "feature": "sensor_14",
+      "official_description": "Corrected Core Speed (rpm)",
+      "importance": 0.0253
+    },
+    {
+      "rank": 6,
+      "feature": "sensor_7",
+      "official_description": "Total Pressure at HPC Outlet (psia)",
+      "importance": 0.024863
+    },
+    {
+      "rank": 7,
+      "feature": "sensor_15",
+      "official_description": "Bypass Ratio",
+      "importance": 0.018367
+    },
+    {
+      "rank": 8,
+      "feature": "sensor_21",
+      "official_description": "LPT Coolant Bleed (lbm/s)",
+      "importance": 0.013632
+    },
+    {
+      "rank": 9,
+      "feature": "sensor_2",
+      "official_description": "Total Temperature at LPC Outlet (\u00b0R)",
+      "importance": 0.012721
+    },
+    {
+      "rank": 10,
+      "feature": "sensor_3",
+      "official_description": "Total Temperature at HPC Outlet (\u00b0R)",
+      "importance": 0.012399
+    },
+    {
+      "rank": 11,
+      "feature": "sensor_20",
+      "official_description": "HPT Coolant Bleed (lbm/s)",
+      "importance": 0.011351
+    },
+    {
+      "rank": 12,
+      "feature": "sensor_13",
+      "official_description": "Corrected Fan Speed (rpm)",
+      "importance": 0.01103
+    },
+    {
+      "rank": 13,
+      "feature": "sensor_8",
+      "official_description": "Physical Fan Speed (rpm)",
+      "importance": 0.00862
+    },
+    {
+      "rank": 14,
+      "feature": "op_setting_1",
+      "official_description": "Altitude (Operational Setting 1)",
+      "importance": 0.008233
+    },
+    {
+      "rank": 15,
+      "feature": "op_setting_2",
+      "official_description": "Mach Number (Operational Setting 2)",
+      "importance": 0.004819
+    },
+    {
+      "rank": 16,
+      "feature": "sensor_17",
+      "official_description": "Bleed Enthalpy",
+      "importance": 0.00391
+    }
+  ],
+  "feature_importance_dict": {
+    "op_setting_1": 0.008233,
+    "op_setting_2": 0.004819,
+    "sensor_2": 0.012721,
+    "sensor_3": 0.012399,
+    "sensor_4": 0.078869,
+    "sensor_7": 0.024863,
+    "sensor_8": 0.00862,
+    "sensor_9": 0.131431,
+    "sensor_11": 0.603621,
+    "sensor_12": 0.030834,
+    "sensor_13": 0.01103,
+    "sensor_14": 0.0253,
+    "sensor_15": 0.018367,
+    "sensor_17": 0.00391,
+    "sensor_20": 0.011351,
+    "sensor_21": 0.013632
+  }
+}
