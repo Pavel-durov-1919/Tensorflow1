@@ -1,9 +1,8 @@
 """
-C-MAPSS FD001 Model Training & Evaluation Module
-Author: Member A (Data & ML Lead)
+Model Training & Evaluation Module
+A modular predictive maintenance framework supporting multiple datasets and models.
 """
 
-import hashlib
 import json
 import os
 import sys
@@ -12,54 +11,21 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
+from src.config import DATASET_TYPE, MODEL_TYPE, WINDOW_LENGTH
+from src.dataset_adapter import DatasetFactory
+from src.model_adapter import ModelFactory
+from src.preprocess import Preprocessor, WindowGenerator
+
+# Fallback REPO_ROOT logic
 try:
-    from src.data_loader import get_validated_dataset, REPO_ROOT, compute_checksums
-    from src.preprocess import prepare_engine_splits, create_sequence_windows
+    from src.data_loader import REPO_ROOT, compute_checksums
 except ImportError:
-    from data_loader import get_validated_dataset, REPO_ROOT, compute_checksums
-    from preprocess import prepare_engine_splits, create_sequence_windows
+    from data_loader import REPO_ROOT, compute_checksums
 
 MODEL_DIR = os.path.join(REPO_ROOT, "models")
-WINDOW_LENGTH = 30
 MAX_RUL_CAP = 125.0
-
-# Official NASA C-MAPSS Sensor Descriptions
-SENSOR_DESCRIPTIONS = {
-    "op_setting_1": "Altitude (Operational Setting 1)",
-    "op_setting_2": "Mach Number (Operational Setting 2)",
-    "sensor_2": "Total Temperature at LPC Outlet (°R)",
-    "sensor_3": "Total Temperature at HPC Outlet (°R)",
-    "sensor_4": "Total Temperature at LPT Outlet (°R)",
-    "sensor_7": "Total Pressure at HPC Outlet (psia)",
-    "sensor_8": "Physical Fan Speed (rpm)",
-    "sensor_9": "Physical Core Speed (rpm)",
-    "sensor_11": "Static Pressure at HPC Outlet (psia)",
-    "sensor_12": "Ratio of Fuel Flow to Ps30 (pps/psia)",
-    "sensor_13": "Corrected Fan Speed (rpm)",
-    "sensor_14": "Corrected Core Speed (rpm)",
-    "sensor_15": "Bypass Ratio",
-    "sensor_17": "Bleed Enthalpy",
-    "sensor_20": "HPT Coolant Bleed (lbm/s)",
-    "sensor_21": "LPT Coolant Bleed (lbm/s)"
-}
-
-
-def train_random_forest_baseline(X_train: np.ndarray, y_train: np.ndarray, random_state: int = 42) -> RandomForestRegressor:
-    """Train primary RandomForestRegressor baseline model."""
-    print("Training primary RandomForestRegressor baseline model...")
-    rf = RandomForestRegressor(
-        n_estimators=120,
-        max_depth=14,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        random_state=random_state,
-        n_jobs=-1
-    )
-    rf.fit(X_train, y_train)
-    return rf
 
 
 def compute_comprehensive_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
@@ -110,14 +76,20 @@ def compute_comprehensive_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dic
         "segmented_metrics": segmented
     }
 
-def evaluate_on_test_set(model: RandomForestRegressor, test_df: pd.DataFrame, test_rul: pd.Series, useful_features: list) -> dict:
-    """Evaluate model on the true holdout test set (using final cycles of test trajectories)."""
-    # Test set contains trajectories that end before failure. The true RUL for the last cycle is in test_rul.
-    last_cycles = test_df.groupby('unit_nr').last()[useful_features]
-    y_pred = model.predict(last_cycles.values)
+
+def evaluate_on_test_set(model_adapter, test_df: pd.DataFrame, useful_features: list, target_col: str) -> dict:
+    """Evaluate model on the test set."""
+    # Since our random forest baseline expects single-cycle inference, 
+    # we take the last cycle. For a sequence model (e.g. LSTM), we would extract windows.
+    group_col = "engine_id" if "engine_id" in test_df.columns else "unit_nr"
+    last_cycles = test_df.groupby(group_col).last()[useful_features]
+    true_ruls = test_df.groupby(group_col).last()[target_col]
     
+    y_pred = model_adapter.predict(last_cycles.values)
+    
+    # Bounded comparison
     y_pred_clipped = np.minimum(y_pred, MAX_RUL_CAP)
-    y_true_clipped = np.minimum(test_rul.values, MAX_RUL_CAP)
+    y_true_clipped = np.minimum(true_ruls.values, MAX_RUL_CAP)
     
     mae = float(mean_absolute_error(y_true_clipped, y_pred_clipped))
     rmse = float(root_mean_squared_error(y_true_clipped, y_pred_clipped))
@@ -128,84 +100,66 @@ def evaluate_on_test_set(model: RandomForestRegressor, test_df: pd.DataFrame, te
     }
 
 
-
-def extract_feature_importance(model: RandomForestRegressor, feature_names: list) -> dict:
-    """Extract and rank feature importances with official NASA sensor descriptions."""
-    importances = model.feature_importances_
-    sorted_idx = np.argsort(importances)[::-1]
-    
-    ranked_features = [
-        {
-            "rank": i + 1,
-            "feature": feature_names[idx],
-            "official_description": SENSOR_DESCRIPTIONS.get(feature_names[idx], "Operational Sensor"),
-            "importance": round(float(importances[idx]), 6)
-        }
-        for i, idx in enumerate(sorted_idx)
-    ]
-    return {
-        "ranked_features": ranked_features,
-        "feature_importance_dict": {feature_names[i]: round(float(importances[i]), 6) for i in range(len(feature_names))}
-    }
-
-
 def run_pipeline():
-    """Execute dataset loading, engine splitting, model training, evaluation, and artifact saving."""
+    """Execute generic modular pipeline."""
     os.makedirs(MODEL_DIR, exist_ok=True)
     
-    # 1. Ingest & Validate
-    train_df, test_df, test_rul, dataset_checksums, sensor_meta, useful_features = get_validated_dataset()
+    # 1. Initialize Adapters
+    dataset_adapter = DatasetFactory.get_adapter(DATASET_TYPE)
+    model_adapter = ModelFactory.get_adapter(MODEL_TYPE)
     
-    # 2. Split by Engine & Scale
-    train_split, val_split, scaler, scaled_cols = prepare_engine_splits(train_df, useful_features)
+    # 2. Get Data & Meta
+    train_df, val_df, test_df = dataset_adapter.get_data_splits()
+    feature_names = dataset_adapter.get_feature_names()
+    target_col = dataset_adapter.get_rul_column()
+    dataset_meta = dataset_adapter.get_metadata()
+    model_meta = model_adapter.get_metadata()
     
-    # 3. Train Primary RandomForest Model using cycle snapshots
-    X_train = train_split[useful_features].values
-    y_train = train_split["RUL_clipped"].values
-    X_val = val_split[useful_features].values
-    y_val = val_split["RUL_clipped"].values
+    # 3. Preprocess (Scale Features)
+    preprocessor = Preprocessor()
+    train_df, val_df, test_df, scaled_cols = preprocessor.fit_transform(
+        train_df, val_df, test_df, feature_names
+    )
     
+    # 4. For Baseline Random Forest, we just use the raw flattened arrays of the snapshot.
+    # In a full sequence model, we would use WindowGenerator.create_windows()
+    # For now, we simulate what the old code did: flattening snapshots.
+    X_train = train_df[feature_names].values
+    y_train = train_df[target_col].values
+    X_val = val_df[feature_names].values
+    y_val = val_df[target_col].values
+    
+    # 5. Train Model
+    print(f"Training {model_meta['algorithm']} on {DATASET_TYPE} dataset...")
     start_time = time.time()
-    rf_model = train_random_forest_baseline(X_train, y_train)
+    model_adapter.train(X_train, y_train)
     training_time_sec = time.time() - start_time
     
-    # 4. Evaluate Comprehensive Metrics & Feature Importances
-    y_val_pred = rf_model.predict(X_val)
+    # 6. Evaluate
+    y_val_pred = model_adapter.predict(X_val)
     perf_metrics = compute_comprehensive_metrics(y_val, y_val_pred)
-    feat_importance = extract_feature_importance(rf_model, useful_features)
-    test_metrics = evaluate_on_test_set(rf_model, test_df, test_rul, useful_features)
+    feat_importance = model_adapter.get_feature_importances(feature_names)
+    test_metrics = evaluate_on_test_set(model_adapter, test_df, feature_names, target_col)
     
-    print(f"RandomForest Validation -> MAE: {perf_metrics['overall_mae']}, RMSE: {perf_metrics['overall_rmse']}")
-    print(f"RandomForest Test Set   -> MAE: {test_metrics['mae']}, RMSE: {test_metrics['rmse']}")
-    print(f"Near-Failure MAE (RUL <= 30): {perf_metrics['near_failure_mae']}")
-    print(f"Empirical 90% Interval Coverage: {perf_metrics['empirical_interval_coverage_pct']}%")
+    print(f"Validation -> MAE: {perf_metrics['overall_mae']}, RMSE: {perf_metrics['overall_rmse']}")
+    print(f"Test Set   -> MAE: {test_metrics['mae']}, RMSE: {test_metrics['rmse']}")
     
-    # 5. Save Production Artifacts
+    # 7. Save Artifacts
     model_path = os.path.join(MODEL_DIR, "baseline_model.joblib")
     scaler_path = os.path.join(MODEL_DIR, "scaler.joblib")
     feat_order_path = os.path.join(MODEL_DIR, "feature_order.json")
     feat_imp_path = os.path.join(MODEL_DIR, "feature_importance.json")
     metadata_path = os.path.join(MODEL_DIR, "metadata.json")
-    payloads_path = os.path.join(MODEL_DIR, "sample_payloads.json")
-    examples_path = os.path.join(MODEL_DIR, "engine_examples.json")
     
-    joblib.dump(rf_model, model_path)
-    joblib.dump(scaler, scaler_path)
+    model_adapter.save(model_path)
+    joblib.dump(preprocessor.scaler, scaler_path)
     
     with open(feat_order_path, "w") as f:
-        json.dump(useful_features, f, indent=2)
+        json.dump(feature_names, f, indent=2)
         
     with open(feat_imp_path, "w") as f:
         json.dump(feat_importance, f, indent=2)
         
-    # Checksums for exported binary model artifacts & payload files
-    artifact_checksums = {
-        "baseline_model.joblib": compute_checksums(model_path),
-        "scaler.joblib": compute_checksums(scaler_path),
-        "sample_payloads.json": compute_checksums(payloads_path) if os.path.exists(payloads_path) else None,
-        "engine_examples.json": compute_checksums(examples_path) if os.path.exists(examples_path) else None
-    }
-    
     env_versions = {
         "python": sys.version.split()[0],
         "numpy": np.__version__,
@@ -215,34 +169,28 @@ def run_pipeline():
     }
     
     metadata = {
-        "model_name": "RandomForestRegressor_FD001",
-        "version": "1.3.0",
+        "dataset_type": DATASET_TYPE,
+        "model_name": model_meta["algorithm"],
+        "version": "2.0.0",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "training_time_seconds": round(training_time_sec, 2),
-        "primary_target": "RUL_clipped (max=125)",
+        "primary_target": target_col,
         "environment_versions": env_versions,
-        "feature_count": len(useful_features),
-        "feature_order": useful_features,
+        "expected_feature_count": len(feature_names),
+        "expected_window_length": WINDOW_LENGTH,
+        "feature_order": feature_names,
         "scaled_feature_order": scaled_cols,
-        "window_length": WINDOW_LENGTH,
-        "sequence_conversion_strategy": "The Random Forest converts the (30, 16) sequence into a single RUL prediction by extracting the final cycle (cycle 30 snapshot) from the rolling window.",
-        "model_limitations": [
-            "Baseline Random Forest evaluates ONLY the final cycle (cycle 30) of the 30-cycle window, discarding preceding temporal progression within the window.",
-            "Predictions are bounded to [0.0, 125.0] cycles based on piecewise constant RUL target clipping.",
-            "Operational conditions assume single sea-level flight regime (FD001 configuration)."
-        ],
+        "sequence_conversion_strategy": model_meta.get("sequence_conversion_strategy", "Unknown"),
         "performance_metrics": perf_metrics,
         "test_set_metrics": test_metrics,
-        "artifact_checksums": artifact_checksums,
-        "dataset_checksums": dataset_checksums,
-        "sensor_metadata": sensor_meta
+        "dataset_metadata": dataset_meta
     }
     
     with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
         
-    print(f"Artifacts saved successfully to {MODEL_DIR} under scikit-learn {env_versions['scikit_learn']}")
-    return metadata, val_split, rf_model, scaler, useful_features
+    print(f"Artifacts saved successfully to {MODEL_DIR}")
+    return metadata, val_df, model_adapter, preprocessor, feature_names
 
 
 if __name__ == "__main__":

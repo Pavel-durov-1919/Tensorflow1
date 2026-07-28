@@ -3,7 +3,7 @@
 [![Model Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](file:///c:/Users/ASUS/Tensorflow/models/metadata.json)
 [![Build Status](https://img.shields.io/badge/tests-19%2F19%20passing-brightgreen.svg)](file:///c:/Users/ASUS/Tensorflow/tests/test_api_contract.py)
 
-Production-grade Data & Machine Learning Pipeline for predicting Remaining Useful Life (RUL) of aircraft engines on the NASA C-MAPSS FD001 benchmark dataset. Developed under Apple UI/UX presentation standards, Microsoft & Amazon software reliability, and zero-data-leakage engineering rigor.
+Production-grade modular Data & Machine Learning Pipeline for predicting Remaining Useful Life (RUL) of aircraft engines, supporting multiple datasets including the NASA C-MAPSS FD001 and CruiseBench (N-CMAPSS) benchmark datasets. Developed under Apple UI/UX presentation standards, Microsoft & Amazon software reliability, and zero-data-leakage engineering rigor.
 
 ---
 
@@ -132,7 +132,7 @@ Safety-certifying language has been replaced with dataset-bounded prototype word
 - **Sample Payloads**: [models/sample_payloads.json](file:///c:/Users/ASUS/Tensorflow/models/sample_payloads.json)
 # AeroShield: Predictive Maintenance Serving Gateway & Dashboard
 
-AeroShield is a production-oriented research prototype predictive maintenance analytics application designed for serving machine learning models that predict the Remaining Useful Life (RUL) of industrial equipment (e.g., turbofan jet engines based on C-MAPSS FD001 dataset).
+AeroShield is a production-oriented research prototype predictive maintenance analytics application designed for serving machine learning models that predict the Remaining Useful Life (RUL) of industrial equipment. Built on a dataset-agnostic and model-agnostic modular framework, it supports datasets like NASA C-MAPSS and CruiseBench natively.
 
 It is built with a decoupled architecture featuring a **FastAPI** model serving backend and an **Apple-inspired dark-mode Streamlit** dashboard for human review and analysis.
 

@@ -3,25 +3,7 @@ import httpx, time, numpy as np, pandas as pd
 import plotly.graph_objects as go
 import os, json
 
-# Official NASA C-MAPSS Sensor Descriptions (HI-06)
-SENSOR_DESCRIPTIONS = {
-    "op_setting_1": "Altitude (Operational Setting 1)",
-    "op_setting_2": "Mach Number (Operational Setting 2)",
-    "sensor_2": "Total Temperature at LPC Outlet (°R)",
-    "sensor_3": "Total Temperature at HPC Outlet (°R)",
-    "sensor_4": "Total Temperature at LPT Outlet (°R)",
-    "sensor_7": "Total Pressure at HPC Outlet (psia)",
-    "sensor_8": "Physical Fan Speed (rpm)",
-    "sensor_9": "Physical Core Speed (rpm)",
-    "sensor_11": "Static Pressure at HPC Outlet (psia)",
-    "sensor_12": "Ratio of Fuel Flow to Ps30 (pps/psia)",
-    "sensor_13": "Corrected Fan Speed (rpm)",
-    "sensor_14": "Corrected Core Speed (rpm)",
-    "sensor_15": "Bypass Ratio",
-    "sensor_17": "Bleed Enthalpy",
-    "sensor_20": "HPT Coolant Bleed (lbm/s)",
-    "sensor_21": "LPT Coolant Bleed (lbm/s)"
-}
+# The dashboard dynamically adapts based on backend metadata.
 
 st.set_page_config(
     page_title="AeroShield · Predictive Maintenance",
@@ -415,9 +397,11 @@ def load_model_artifacts():
 try:
     examples, metadata, feature_importance = load_model_artifacts()
     feature_order = metadata.get("feature_order", [])
-    window_length = metadata.get("window_length", 30)
-    model_name    = metadata.get("model_name",    "RandomForestRegressor_FD001")
-    model_version = metadata.get("version",       "1.0.0")
+    feature_descriptions = metadata.get("dataset_metadata", {}).get("sensor_metadata", {})
+    window_length = metadata.get("expected_window_length", 30)
+    model_name    = metadata.get("model_name",    "RandomForestRegressor")
+    model_version = metadata.get("version",       "2.0.0")
+    dataset_type  = metadata.get("dataset_type",  "Unknown Dataset").upper()
 except Exception as e:
     st.error(f"❌ Failed to load artifacts: {e}"); st.stop()
 
@@ -515,7 +499,7 @@ st.markdown(f"""
     <div class="brand-icon">🛡️</div>
     <div>
       <div class="brand-name">AeroShield</div>
-      <div class="brand-tagline">Predictive Maintenance Intelligence · NASA C-MAPSS FD001</div>
+      <div class="brand-tagline">Predictive Maintenance Intelligence · {dataset_type}</div>
     </div>
   </div>
   <div class="api-chip {chip_cls}">
@@ -535,8 +519,7 @@ def simulate_sensor_window(engine_id, target_cycle, total_cycles, final_features
         frac = c/total_cycles; row = []
         for f in feat_order:
             fv = final_features[f]
-            rising = any(x in f for x in ["sensor_2","sensor_3","sensor_4","sensor_8","sensor_9",
-                                           "sensor_11","sensor_13","sensor_14","sensor_15","sensor_17"])
+            rising = (hash(f) % 2 == 0)
             nom  = fv*(0.92 if rising else 1.08)
             row.append(round(nom+(fv-nom)*frac+np.random.normal(0,abs(fv)*0.003), 4))
         out.append(row)
@@ -572,8 +555,8 @@ with c1:
     st.markdown(f"""
     <div class="lg-card accent-blue">
       <div class="lg-label">Active Model</div>
-      <div class="lg-value-md grad-blue">RandomForestRegressor</div>
-      <div class="lg-sub" style="font-family:'JetBrains Mono',monospace;margin-top:8px;">FD001 · v{model_version}</div>
+      <div class="lg-value-md grad-blue">{model_name}</div>
+      <div class="lg-sub" style="font-family:'JetBrains Mono',monospace;margin-top:8px;">{dataset_type} · v{model_version}</div>
     </div>""", unsafe_allow_html=True)
 with c2:
     st.markdown(f"""
@@ -787,8 +770,8 @@ st.markdown("""<div class="sec-hdr"><div class="bar"></div>
 selected_sensors = st.multiselect(
     "Select sensor features to compare (Z-score normalized)",
     options=feature_order,
-    default=["sensor_2","sensor_3","sensor_4","sensor_11"],
-    format_func=lambda x: f"{x} — {SENSOR_DESCRIPTIONS.get(x, x)}"
+    default=feature_order[:4] if len(feature_order) >= 4 else feature_order,
+    format_func=lambda x: f"{x} — {feature_descriptions.get(x, x)}"
 )
 
 NEON_PALETTE = ['#818cf8','#34d399','#fbbf24','#f87171','#38bdf8','#fb923c',
@@ -801,8 +784,7 @@ if selected_sensors:
         frac=c/max_cycles; row={"cycle":c}
         for f in feature_order:
             fv=latest_features[f]
-            rising=any(x in f for x in ["sensor_2","sensor_3","sensor_4","sensor_8","sensor_9",
-                                         "sensor_11","sensor_13","sensor_14","sensor_15","sensor_17"])
+            rising=(hash(f) % 2 == 0)
             nom=fv*(0.92 if rising else 1.08)
             row[f]=nom+(fv-nom)*frac+np.random.normal(0,abs(fv)*0.003)
         rows.append(row)
@@ -849,7 +831,7 @@ if feature_importance and "ranked_features" in feature_importance:
     
     top_n = feature_importance["ranked_features"][:10]
     fi_names = [f["feature"] for f in top_n][::-1]
-    fi_descs = [f["official_description"] for f in top_n][::-1]
+    fi_descs = [feature_descriptions.get(f["feature"], f["feature"]) for f in top_n][::-1]
     fi_vals = [f["importance"] * 100 for f in top_n][::-1]
     
     fig3 = go.Figure(go.Bar(
@@ -878,7 +860,7 @@ st.markdown(f"""
 <hr class="glow-hr">
 <div style="display:flex;justify-content:space-between;align-items:center;
   font-size:.7rem;color:rgba(255,255,255,.15);padding-bottom:12px;">
-  <span>AeroShield · NASA C-MAPSS FD001 · RandomForestRegressor v{model_version}</span>
+  <span>AeroShield · {dataset_type} · {model_name} v{model_version}</span>
   <span style="font-family:'JetBrains Mono',monospace;">
     PI Coverage: <span style="color:rgba(255,255,255,.28);">{pi_cov_pct}%</span>
     &nbsp;·&nbsp;Backend:&nbsp;<span style="color:rgba(255,255,255,.28);">localhost:8000</span>

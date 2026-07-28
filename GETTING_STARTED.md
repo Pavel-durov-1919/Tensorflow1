@@ -20,6 +20,15 @@ python -m uvicorn app.main:app --port 8000 --reload
 ```
 *The API will be available at [http://localhost:8000](http://localhost:8000) and documentation at [http://localhost:8000/docs](http://localhost:8000/docs).*
 
+### Optional: Changing Datasets
+The pipeline dynamically supports multiple datasets (CMAPSS and CruiseBench). You can switch between them by setting the `DATASET_TYPE` environment variable before starting the backend:
+```bash
+# Windows PowerShell
+$env:DATASET_TYPE="cruisebench"
+# Linux/macOS
+export DATASET_TYPE="cruisebench"
+```
+
 ## 3. Start the Frontend (Streamlit Dashboard)
 
 Open a new, separate terminal (leave the backend running), ensure you are in the project root directory, and launch the Streamlit frontend:

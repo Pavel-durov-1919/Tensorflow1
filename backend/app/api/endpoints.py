@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 import logging
 from app.schemas import PredictRULRequest, PredictRULResponse, HealthResponse, ModelInfoResponse
 from app.services.predictor import PredictorService
-from app.config import API_VERSION, MODEL_NAME, MODEL_VERSION, WINDOW_SIZE, NUM_FEATURES
+from app.config import API_VERSION, MODEL_NAME, MODEL_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +38,18 @@ def model_info():
     meta = predictor_service.metadata
     metrics = meta.get("validation_metrics", {})
     
-    # Retrieve metrics from validation_metrics inside metadata.json
+    # Retrieve metrics from performance_metrics inside metadata.json
+    metrics = meta.get("performance_metrics", {})
     return ModelInfoResponse(
         model_name=meta.get("model_name", MODEL_NAME),
         model_version=meta.get("version", MODEL_VERSION),
-        framework="Scikit-Learn (RandomForestRegressor)",
+        framework=meta.get("environment_versions", {}).get("scikit_learn", "Scikit-Learn (RandomForestRegressor)"),
         description="Predicts the Remaining Useful Life (RUL) of turbofan engines using multivariate sensor time series sequences.",
-        expected_window_size=meta.get("window_length", WINDOW_SIZE),
-        expected_num_features=meta.get("feature_count", NUM_FEATURES),
+        expected_window_size=meta.get("expected_window_length", 30),
+        expected_num_features=meta.get("expected_feature_count", 16),
         metrics={
-            "MAE": round(metrics.get("mae", 12.35), 2),
-            "RMSE": round(metrics.get("rmse", 17.06), 2)
+            "MAE": round(metrics.get("overall_mae", 12.35), 2),
+            "RMSE": round(metrics.get("overall_rmse", 17.06), 2)
         }
     )
 
@@ -64,6 +65,22 @@ def predict_rul(payload: PredictRULRequest):
             detail="Predictive maintenance model is currently unavailable."
         )
         
+    meta = predictor_service.metadata
+    expected_window_size = meta.get("expected_window_length", 30)
+    expected_num_features = meta.get("expected_feature_count", 16)
+    
+    if len(payload.sensor_window) != expected_window_size:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Outer list must have exactly {expected_window_size} time steps, got {len(payload.sensor_window)}"
+        )
+    for i, timestep in enumerate(payload.sensor_window):
+        if len(timestep) != expected_num_features:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Timestep {i} must have exactly {expected_num_features} sensor features, got {len(timestep)}"
+            )
+            
     try:
         prediction = predictor_service.predict_rul(
             engine_id=payload.engine_id,

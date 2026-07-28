@@ -1,27 +1,20 @@
 import math
 from typing import List, Dict
 from pydantic import BaseModel, Field, field_validator
-from app.config import WINDOW_SIZE, NUM_FEATURES
+from pydantic import BaseModel, Field, field_validator
 
 class PredictRULRequest(BaseModel):
     engine_id: int = Field(..., gt=0, description="Unique identifier of the engine/machine")
     cycle: int = Field(..., ge=1, description="Current operational cycle of the engine")
     sensor_window: List[List[float]] = Field(
         ...,
-        description=f"2D list of shape ({WINDOW_SIZE}, {NUM_FEATURES}) representing historical sensor readings sequence"
+        description="2D list representing historical sensor readings sequence"
     )
 
     @field_validator("sensor_window")
     @classmethod
-    def validate_window_dimensions_and_values(cls, v: List[List[float]]) -> List[List[float]]:
-        if len(v) != WINDOW_SIZE:
-            raise ValueError(f"Outer list must have exactly {WINDOW_SIZE} time steps, got {len(v)}")
-        
+    def validate_values(cls, v: List[List[float]]) -> List[List[float]]:
         for i, timestep in enumerate(v):
-            if len(timestep) != NUM_FEATURES:
-                raise ValueError(
-                    f"Timestep {i} must have exactly {NUM_FEATURES} sensor features, got {len(timestep)}"
-                )
             for j, val in enumerate(timestep):
                 if not math.isfinite(val):
                     raise ValueError(
