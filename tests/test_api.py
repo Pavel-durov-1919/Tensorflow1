@@ -22,8 +22,8 @@ def test_model_info_endpoint(test_client):
     response = test_client.get("/model-info")
     assert response.status_code == 200
     data = response.json()
-    assert data["model_name"] == "RandomForestRegressor_FD001"
-    assert data["model_version"] == "1.3.0"
+    assert data["model_name"] == "RandomForestRegressor"
+    assert data["model_version"] == "2.0.0"
     assert "framework" in data
     assert data["expected_window_size"] == WINDOW_SIZE
     assert data["expected_num_features"] == NUM_FEATURES
@@ -60,8 +60,8 @@ def test_predict_rul_engine_54_valid(test_client, sample_payloads, get_sensor_wi
     assert data["risk_level"] in ("Low", "Medium", "High", "Critical")
     assert 0.0 <= data["data_quality_score"] <= 1.0
     assert "recommendation" in data
-    assert data["model_name"] == "RandomForestRegressor_FD001"
-    assert data["model_version"] == "1.3.0"
+    assert data["model_name"] == "RandomForestRegressor"
+    assert data["model_version"] == "2.0.0"
 
 def test_predict_rul_engine_74_valid(test_client, sample_payloads, get_sensor_window_payload):
     """

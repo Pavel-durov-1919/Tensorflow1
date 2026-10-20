@@ -86,9 +86,11 @@ class CruiseBenchAdapter(BaseDatasetAdapter):
         ]
         
     def get_data_splits(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        # Implementation for CruiseBench loading
-        import h5py
         if os.path.exists(self.data_path):
+            try:
+                import h5py
+            except ImportError:
+                raise ImportError("h5py is required to load CruiseBench.h5. Install it with: pip install h5py")
             with h5py.File(self.data_path, "r") as f:
                 train_df = pd.DataFrame(f["train_data"][:], columns=f["train_data"].attrs["columns"])
                 val_df = pd.DataFrame(f["val_data"][:], columns=f["val_data"].attrs["columns"])
