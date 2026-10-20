@@ -2,8 +2,8 @@
   "dataset_type": "cmapss",
   "model_name": "RandomForestRegressor",
   "version": "2.0.0",
-  "timestamp": "2026-07-28 05:02:17",
-  "training_time_seconds": 13.78,
+  "timestamp": "2026-10-20 18:09:42",
+  "training_time_seconds": 4.83,
   "primary_target": "RUL_clipped",
   "environment_versions": {
     "python": "3.12.10",

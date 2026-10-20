@@ -32,7 +32,7 @@ class TestRULPredictorAPIContract(unittest.TestCase):
     def test_valid_sequence_prediction(self):
         """Test prediction with valid (30, 16) sequence."""
         res = self.predictor.predict_rul(self.valid_30_seq)
-        self.assertEqual(res["version"], "1.3.0")
+        self.assertEqual(res["version"], "2.0.0")
         self.assertEqual(res["window_length"], 30)
         self.assertIn("estimated_rul", res)
         self.assertIn("lower_bound", res)

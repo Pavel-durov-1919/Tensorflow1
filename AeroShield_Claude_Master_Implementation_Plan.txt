@@ -1,0 +1,874 @@
+AEROSHIELD — MASTER IMPLEMENTATION AND VERIFICATION PLAN
+=========================================================
+
+Project: AeroShield — Aircraft Engine Remaining Useful Life (RUL) Prediction and Predictive Maintenance
+Repository: https://github.com/lgtvos1920/Tensorflow1
+Execution environment: Existing project running locally
+
+PRIMARY OBJECTIVE
+-----------------
+Inspect, complete, test, and validate the existing AeroShield application without unnecessarily replacing working components.
+
+Claude has been provided with:
+1. This implementation plan.
+2. The existing AeroShield project files.
+3. A local development environment in which the project can be inspected and run.
+4. Whatever datasets, configurations, models, dependencies, documentation, and tests are already present.
+
+Determine the actual state of the repository independently. Do not assume features described in documentation are implemented correctly. Do not assume an endpoint, model, dashboard, or dataset adapter works merely because its code exists.
+
+FINAL OBJECTIVE
+---------------
+Deliver a working, reproducible, tested machine-learning application that:
+- Loads and processes supported aircraft-engine degradation datasets.
+- Trains and evaluates a Remaining Useful Life prediction model.
+- Produces meaningful predictions using the trained model.
+- Exposes prediction functionality through the existing backend.
+- Presents relevant information through the existing dashboard.
+- Reports model performance using appropriate evaluation metrics.
+- Handles invalid inputs, missing resources, and runtime errors gracefully.
+- Can be installed, started, tested, and demonstrated using documented commands.
+
+Do not claim the project meets these objectives until you have evidence.
+
+1. UNDERSTAND THE PROJECT BEFORE CHANGING ANYTHING
+--------------------------------------------------
+The repository has previously been identified as containing components such as:
+- src/config.py: central configuration for datasets, models, random state, and window length.
+- src/dataset_adapter.py: dataset abstraction and dataset-specific handling.
+- src/train.py: model training and evaluation pipeline.
+- backend/app/main.py: FastAPI application.
+- frontend/dashboard.py: Streamlit dashboard.
+- requirements.txt: Python dependencies.
+- Dataset/model factory components, preprocessing code, and window-generation components.
+
+This is a starting point, not a guaranteed inventory. Inspect actual files before relying on it.
+
+An earlier inspection found configuration defaults resembling:
+    DATASET_TYPE = os.getenv("DATASET_TYPE", "cmapss")
+    MODEL_TYPE = os.getenv("MODEL_TYPE", "random_forest")
+    RANDOM_STATE = int(os.getenv("RANDOM_STATE", "42"))
+    WINDOW_LENGTH = int(os.getenv("WINDOW_LENGTH", "30"))
+
+Verify the current configuration before changing it. Treat previously reported metrics, features, and test results as unverified until reproduced or supported by trustworthy evidence.
+
+1.1 Initial repository inspection
+Run suitable commands in the existing project directory, adapting them to the shell:
+    git status --short
+    git log --oneline -10
+    git ls-files
+
+Inspect:
+- Python source files.
+- Backend routes and schemas.
+- Frontend pages and dashboard components.
+- Dataset files and their locations.
+- Dataset adapters.
+- Model implementations and factories.
+- Preprocessing and feature-engineering code.
+- Training and inference pipelines.
+- Saved models and preprocessing artifacts.
+- Automated tests.
+- Configuration files and environment-variable usage.
+- Dependency and environment-management files.
+- Docker configuration, if present.
+- Existing reports, documentation, and evaluation results.
+
+Read relevant files before proposing major architectural changes.
+
+Required output: docs/IMPLEMENTATION_AUDIT.md
+
+Include a table with:
+Area | Existing implementation | Verified status | Problems | Required action
+
+Cover at least:
+- Dataset loading
+- Preprocessing
+- Model training
+- Model evaluation
+- Model persistence
+- Prediction API
+- Dashboard
+- Testing
+- Deployment
+
+Use statuses such as Verified, Partially verified, Not verified, or Blocked. A component is not verified merely because it imports successfully.
+
+2. ESTABLISH THE GROUND TRUTH
+-----------------------------
+Before modifying code, identify the application's actual behavior.
+
+Use the existing startup instructions. If incomplete, inspect dependency files, entry points, and configuration to determine correct commands.
+
+Identify:
+- Backend startup command and host/port.
+- Dashboard startup command and host/port.
+- Required environment variables.
+- Dataset and model artifact paths.
+- Whether training is automatic or manual.
+- Whether prediction requires a previously trained model.
+
+If the application is already running, inspect existing processes and ports rather than launching duplicate instances. Do not terminate unrelated processes.
+
+Test:
+1. Backend startup.
+2. Health endpoint, if present.
+3. Dashboard startup.
+4. Dashboard-to-backend communication.
+5. Dataset discovery.
+6. Existing training command.
+7. Prediction generation.
+8. Evaluation metric generation.
+9. Error handling.
+10. Existing automated tests.
+
+Save results in docs/BASELINE_RESULTS.md. Record commands, observed behavior, errors, and limitations. If a component cannot be tested due to a missing dataset, artifact, or external service, document the limitation rather than inventing a result.
+
+Do not change the model architecture before obtaining this baseline.
+
+3. DEFINE THE INTENDED SYSTEM
+-----------------------------
+AeroShield is an aircraft-engine health-monitoring and Remaining Useful Life prediction system. Its purpose is to estimate how many operational cycles remain before an engine reaches a defined end-of-life or failure threshold, using historical engine sensor data.
+
+Intended workflow:
+    Aircraft Engine Degradation Dataset
+                    |
+                    v
+              Dataset Loading
+                    |
+                    v
+           Validation and Cleaning
+                    |
+                    v
+            Feature Engineering
+                    |
+                    v
+         Training/Validation/Test
+                    |
+                    v
+               Model Training
+                    |
+                    v
+              Model Evaluation
+                    |
+                    v
+             Model Persistence
+                    |
+                    v
+             Prediction Service
+                    |
+                    v
+              FastAPI Backend
+                    |
+                    v
+             Streamlit Dashboard
+                    |
+                    v
+             RUL Predictions and
+              Evaluation Results
+
+Use existing components where practical. Do not introduce separate services or duplicate pipelines unless the audit demonstrates that the existing architecture cannot reasonably support requirements.
+
+Core requirements:
+
+Dataset management:
+- Load supported datasets.
+- Validate required columns and data types.
+- Identify engine identifiers, cycles, sensor features, operating-condition features, and RUL target.
+- Handle missing or invalid values according to documented rules.
+- Report useful errors when a dataset is unavailable or malformed.
+- Do not silently treat metadata as model features.
+
+Machine learning:
+- Prepare training, validation, and test data correctly.
+- Train a reproducible baseline.
+- Save the trained model.
+- Load the saved model for inference.
+- Evaluate with appropriate regression metrics.
+- Prevent target leakage and train/test leakage.
+- Record model configuration and dataset for each experiment.
+
+API:
+- Provide a way to inspect application health.
+- Expose supported prediction functionality.
+- Validate requests.
+- Return predictions in a documented format.
+- Handle missing models and invalid input without uncontrolled crashes.
+- Report useful errors.
+
+Dashboard:
+- Display application status where practical.
+- Show active dataset and model configuration.
+- Present predictions clearly.
+- Display actual evaluation metrics when available.
+- Visualize engine degradation or RUL trends when supported.
+- Show understandable errors when data or model is unavailable.
+
+Reproducibility:
+- Document installation and startup.
+- Document dataset requirements.
+- Document training and evaluation commands.
+- Provide automated tests.
+- Record actual experiment results.
+- Make the demonstrated workflow reproducible.
+
+4. DATASET SUPPORT AND COMPATIBILITY
+------------------------------------
+Dataset support is high priority because the entire application depends on the data pipeline.
+
+The project has previously been associated with:
+1. NASA C-MAPSS.
+2. CruiseBench, associated with the N-CMAPSS aircraft-engine simulation benchmark.
+
+Do not assume both are implemented or that both work with real data. Determine which datasets the repository genuinely supports.
+
+4.1 C-MAPSS
+Verify the existing adapter against actual dataset format:
+- Engine identifiers.
+- Operational cycles.
+- Operating-condition features.
+- Sensor features.
+- RUL target construction.
+- Training/test data handling.
+- Available ground-truth RUL files.
+- Dataset split boundaries.
+- Data types and missing values.
+
+For conventional C-MAPSS FD001 training data, verify that RUL labels are constructed according to a documented rule. A common maximum-cycle formulation is:
+
+    RUL(i,t) = maximum_cycle(i) - t
+
+where i is an engine and t is the observed cycle. Use this only if it matches the dataset and experiment design. Do not blindly apply the same labeling method to every dataset or evaluation split.
+
+4.2 CruiseBench
+Inspect the actual adapter and expected input format.
+
+Previously inspected documentation described:
+- engine_id
+- cycle
+- rul
+- Operating-condition descriptors: w, mach, alt, tla
+- Sensors: t24, t30, t48, t50, p15, p2, p21, p24, ps30, p40, p50, nf, nc, wf
+
+Verify these fields against actual data and current documentation before relying on them.
+
+Check:
+- Documented file format.
+- Correct feature selection.
+- Correct train/validation/test handling.
+- RUL target preservation.
+- Dataset-specific preprocessing.
+- Training on the real dataset.
+- Evaluation against correct test labels.
+
+Synthetic test data can verify software behavior, but does not prove correct operation on real CruiseBench data.
+
+Explicitly distinguish:
+- Fully supported datasets.
+- Partially supported datasets.
+- Datasets supported only by synthetic tests.
+- Documented but unimplemented datasets.
+
+Do not claim full CruiseBench support until its real-data workflow has been tested successfully.
+
+4.3 Backward compatibility
+If both dataset families are already part of the architecture, preserve the selection mechanism where possible. For example:
+    DATASET_TYPE=cmapss
+or:
+    DATASET_TYPE=cruisebench
+
+Use the actual configuration mechanism found in the repository. Do not introduce a second selection mechanism if one already works.
+
+5. DATA PREPROCESSING AND LEAKAGE PREVENTION
+--------------------------------------------
+Inspect preprocessing carefully.
+
+5.1 Data validation
+Check:
+- Missing values.
+- Infinite values.
+- Duplicate or invalid records.
+- Incorrect column names.
+- Invalid cycle ordering.
+- Unexpected data types.
+- Incorrect engine identifiers.
+- Unexpected sensor distributions.
+- Inconsistent feature sets between training and inference.
+
+Do not automatically delete every unusual observation. An unusual sensor reading may be a data error or meaningful engine degradation. Choose rules based on evidence and document them.
+
+5.2 Train/validation/test separation
+Ensure preprocessing does not use held-out test data to fit the model.
+
+Fit these operations on training data only:
+- Feature scaling.
+- Imputation.
+- Data-driven feature selection.
+- Other transformations that learn parameters from data.
+
+Apply fitted transformations to validation and test data without refitting.
+
+Where there are multiple observations per engine, verify that the split strategy matches the evaluation design. For engine-independent evaluation, engines in the training split should not also appear in the held-out split.
+
+If a benchmark specifies predefined splits, respect them unless a documented experiment explicitly requires another strategy. Do not silently replace prescribed splits with random row-level splitting.
+
+5.3 Sequence/window generation
+If sliding windows are used, verify:
+- Window length.
+- Window stride.
+- Feature order.
+- Engine boundaries.
+- Target alignment.
+- Handling of engines shorter than the required window.
+- Consistency between training and inference.
+
+No window may contain observations from different engines. The target must match the intended prediction point. If a window covers cycles t-W+1 through t and predicts RUL at the final observation, its label must correspond to cycle t. Keep the policy consistent in training and inference.
+
+5.4 Persist preprocessing
+If the model requires scaling, imputation, or other learned transformations, save required preprocessing objects with the trained model. Inference must use the same feature order and transformations used during training.
+
+Expected result: a reproducible preprocessing pipeline with tests and no known critical target leakage or alignment errors.
+
+6. MODEL TRAINING AND ARCHITECTURE
+----------------------------------
+Do not immediately replace the existing model. First determine what it does.
+
+6.1 Establish a baseline
+Use the simplest reliable model already supported. If Random Forest is the current baseline, retain it unless there is a demonstrated technical reason to change it.
+
+Verify:
+- Input features.
+- Target values.
+- Hyperparameters.
+- Random-state configuration.
+- Training duration.
+- Prediction shape.
+- Saved model format.
+- Evaluation procedure.
+
+If each window is reduced to the final cycle's sensor readings, document that accurately. A Random Forest receiving one feature vector per prediction is not learning temporal relationships across the full sequence merely because the input originated from a time window.
+
+If temporal modeling is an objective, consider an additional sequence model only after the baseline is correct. Optional candidates include LSTM, GRU, or Temporal Convolutional Network. These are not mandatory replacements; complexity does not automatically improve performance.
+
+6.2 Reproducibility
+Record:
+- Dataset.
+- Model type.
+- Feature configuration.
+- Window length and stride, if applicable.
+- Random seed.
+- Training configuration.
+- Evaluation split.
+- MAE.
+- RMSE.
+- Model artifact location.
+
+Keep the current configuration interface unless the audit identifies a specific limitation.
+
+6.3 Model persistence
+Verify that a trained model can be:
+1. Saved successfully.
+2. Loaded in a separate inference process.
+3. Used to predict valid input.
+4. Used without retraining whenever the backend starts.
+
+Use the existing persistence approach if appropriate. Save preprocessing objects and feature metadata consistently when needed. Handle missing or incompatible model files with a clear error.
+
+Expected result: reproducible training that produces a usable model artifact and independent inference path.
+
+7. MODEL EVALUATION AND RESEARCH INTEGRITY
+------------------------------------------
+The project must demonstrate that predictions are evaluated correctly.
+
+7.1 Required metrics
+
+Mean Absolute Error:
+    MAE = (1/N) * sum(abs(y_i - predicted_y_i))
+
+Root Mean Squared Error:
+    RMSE = sqrt((1/N) * sum((y_i - predicted_y_i)^2))
+
+Here y_i is actual RUL, predicted_y_i is predicted RUL, and N is the number of evaluated observations. Express metrics in cycles when the RUL target is measured in cycles.
+
+7.2 Metric correctness
+Verify:
+- Ground-truth and prediction arrays have matching shapes.
+- Metrics use the intended evaluation split.
+- Missing predictions are not silently discarded.
+- Reported values correspond to the actual model and dataset.
+- Training labels are not accidentally used as test labels.
+- Evaluation is not performed only on training data.
+
+If additional metrics exist, verify their definitions and implementations.
+
+7.3 Benchmark comparison
+If CruiseBench is used, consult the benchmark's documented evaluation protocol before comparing results. Previously encountered documentation reported results for multiple architectures under a specified window configuration, but those figures are not automatically comparable to this project's results.
+
+Verify dataset version, train/test protocol, RUL definition, input features, window length/stride, evaluation procedure, and metric definition before comparison. Explain differences if these do not match.
+
+7.4 Results reporting
+Create reports/experiment_results.md.
+
+For each experiment, record:
+- Experiment ID.
+- Dataset.
+- Exact evaluation split.
+- Model.
+- Features.
+- Preprocessing.
+- Window configuration, if applicable.
+- Measured MAE.
+- Measured RMSE.
+- Reproduction command and configuration.
+- Artifact location.
+- Status: completed, failed, or not run.
+
+Never present expected metrics as measured results. If training fails, record the failure and cause.
+
+8. BACKEND IMPLEMENTATION AND VERIFICATION
+------------------------------------------
+Inspect backend/app/main.py and all related schemas, routers, and service modules. Preserve the current FastAPI architecture where practical.
+
+8.1 Health check
+Verify whether a health endpoint exists. If not, add one consistent with current routing conventions. If API health and model readiness are different, report them separately. An API may be running while the trained model is unavailable.
+
+8.2 Prediction endpoint
+Inspect current request and response schemas. Use the input format expected by the actual inference pipeline. The endpoint should:
+- Validate input.
+- Validate required features.
+- Reject malformed or incomplete input.
+- Apply persisted preprocessing.
+- Load or use the trained model.
+- Return predicted RUL.
+- Return useful responses for invalid input.
+- Handle missing artifacts gracefully.
+
+Do not invent a request format that conflicts with the existing dashboard or inference code.
+
+8.3 Metadata and model status
+Where supported, expose active dataset, active model, required features, model readiness, available metrics, and model version/experiment identifier. Metadata must reflect actual configuration, not hard-coded claims.
+
+8.4 Error handling
+Test missing fields, incorrect feature count, invalid numerical values, missing artifacts, invalid dataset configuration, backend service failures, and unexpected exceptions. Errors must be useful without exposing secrets or unnecessary internals.
+
+8.5 API documentation
+Ensure OpenAPI documentation reflects actual endpoints. If the project already uses FastAPI's default documentation, verify it rather than replacing it.
+
+Expected result: a working API that generates predictions using the trained model and safely rejects invalid requests.
+
+9. DASHBOARD IMPLEMENTATION AND VERIFICATION
+--------------------------------------------
+Inspect frontend/dashboard.py and its dependencies. Preserve the existing visual identity unless usability problems justify changes. The goal is to complete the application, not redesign it without reason.
+
+9.1 Required capabilities
+Verify the dashboard can:
+- Connect to the configured backend.
+- Display backend availability.
+- Display active dataset and model.
+- Present prediction results.
+- Display actual evaluation metrics when available.
+- Show visualizations supported by the data.
+- Handle loading states.
+- Handle API errors.
+- Handle a missing model.
+- Avoid presenting fabricated predictions or metrics.
+
+If a prediction is unavailable, explain why rather than displaying a placeholder as genuine output.
+
+9.2 Visualizations
+Where appropriate, provide:
+- Predicted RUL.
+- Actual versus predicted RUL.
+- Prediction error.
+- RUL trends over cycles.
+- Sensor trends over cycles.
+- Evaluation metrics.
+
+Actual-versus-predicted plots require ground-truth RUL values. Do not generate them from predictions alone.
+
+9.3 User experience
+Ensure labels are understandable, units are explicit, missing values are handled, errors are visible, the dashboard remains responsive during ordinary requests, backend URLs are configurable, and hard-coded machine-specific paths are avoided.
+
+Expected result: a usable dashboard connected to the real backend, displaying genuine predictions and clearly labeled results.
+
+10. AUTOMATED TESTING STRATEGY
+------------------------------
+Testing is mandatory. A successful startup alone is not proof of correctness. Inspect existing tests and follow the repository's conventions.
+
+10.1 Unit tests
+Test relevant components:
+Configuration:
+- Default values.
+- Valid overrides.
+- Invalid values.
+
+Dataset adapters:
+- Expected schema.
+- Feature selection.
+- RUL target identification.
+- Missing dataset handling.
+- Invalid columns.
+- Correct split behavior.
+
+Preprocessing:
+- Missing-value handling.
+- Scaling.
+- Feature order.
+- Window generation.
+- Target alignment.
+- Engine-boundary protection.
+
+Model pipeline:
+- Model construction.
+- Training.
+- Prediction shape.
+- Model persistence.
+- Model reload.
+
+Evaluation:
+- MAE.
+- RMSE.
+- Invalid metric inputs.
+
+10.2 Integration tests
+Verify:
+1. Dataset loading -> preprocessing.
+2. Preprocessing -> training.
+3. Training -> persistence.
+4. Persistence -> inference.
+5. Inference -> API response.
+6. API response -> dashboard display, where practical.
+
+10.3 API tests
+Test successful health checks, valid predictions, invalid requests, missing model, and unexpected service errors. Use fixtures and temporary model artifacts where practical. Avoid unnecessary reliance on large datasets or external services.
+
+10.4 Dataset-specific tests
+If both C-MAPSS and CruiseBench are claimed to be supported, test their adapters independently. Use small synthetic fixtures for fast unit tests and separately perform real-data smoke tests when data is available. Synthetic fixtures do not replace real-data verification.
+
+10.5 Regression tests
+When fixing a defect, add a test reproducing the original failure where practical. Run relevant existing tests after each major change.
+
+Expected result: tests validate core functionality and detect regressions. Do not invent a target number of passing tests; focus on meaningful coverage.
+
+11. DEPENDENCY AND ENVIRONMENT RELIABILITY
+------------------------------------------
+Inspect dependency versions and runtime environment. The repository has previously contained pinned packages including FastAPI, Uvicorn, Pydantic, Streamlit, NumPy, Pandas, scikit-learn, pytest, Joblib, and Plotly. Verify the current requirements file.
+
+Check:
+- Missing dependencies.
+- Incompatible versions.
+- Deprecated APIs.
+- Unsupported Python versions.
+- Platform-specific assumptions.
+- Incorrect import paths.
+- Startup dependencies on current working directory.
+- Missing environment variables.
+- Invalid artifact paths.
+
+Check whether installed scikit-learn supports every API used. Do not broadly upgrade dependencies just to obtain newer versions. Change dependencies only when necessary, explain why, and retest backend, training, dashboard, and tests.
+
+12. SECURITY AND CONFIGURATION
+------------------------------
+Review for:
+- Hard-coded secrets.
+- Tokens committed to source control.
+- Unsafe exposure of environment variables.
+- Overly permissive CORS.
+- Unnecessary external resource loading.
+- Unsafe uploaded-file handling, if applicable.
+- Unvalidated paths or filenames.
+- Unnecessary exposure of internal errors.
+
+Do not remove functionality simply because it requires configuration. Document configuration and provide safe defaults where possible. If the dashboard loads external resources, determine whether they are required and whether the app functions when unavailable. Avoid unrelated changes that risk breaking functionality without documenting the trade-off.
+
+13. IMPLEMENTATION WORKFLOW
+---------------------------
+
+PHASE 0 — Audit and baseline
+Actions:
+1. Inspect repository.
+2. Read core implementation.
+3. Identify dataset and model paths.
+4. Start or inspect application.
+5. Run existing tests.
+6. Record behavior.
+7. Identify blockers and missing features.
+
+Deliverables:
+- docs/IMPLEMENTATION_AUDIT.md
+- docs/BASELINE_RESULTS.md
+- Prioritized list of verified defects.
+
+Completion: You can explain current behavior, working and failing components, and unverified claims.
+
+PHASE 1 — Stabilize the application
+Actions:
+1. Fix installation and startup failures.
+2. Correct broken imports and configuration.
+3. Resolve dependencies that prevent execution.
+4. Fix existing tests that reveal real defects.
+5. Confirm backend and dashboard startup.
+6. Confirm API/dashboard communication.
+
+Deliverables:
+- Stable startup.
+- Updated environment instructions if needed.
+- Passing tests for repaired components.
+
+Completion: The app starts reproducibly and remaining limitations are documented.
+
+PHASE 2 — Validate the data pipeline
+Actions:
+1. Inspect supported adapters.
+2. Validate schemas.
+3. Verify feature selection.
+4. Verify RUL construction and target alignment.
+5. Verify preprocessing.
+6. Verify window generation if applicable.
+7. Prevent train/test leakage.
+8. Confirm training/inference preprocessing consistency.
+
+Deliverables:
+- Corrected data pipeline.
+- Dataset validation tests.
+- Documented preprocessing rules.
+
+Completion: Valid inputs and targets with no known critical leakage or alignment errors.
+
+PHASE 3 — Stabilize training and evaluation
+Actions:
+1. Train existing baseline.
+2. Confirm training completes.
+3. Calculate MAE/RMSE on intended split.
+4. Verify prediction/target alignment.
+5. Save model.
+6. Save preprocessing artifacts.
+7. Reload artifacts in a separate inference path.
+8. Record configuration and results.
+
+Deliverables:
+- Reproducible training command.
+- Saved model and preprocessing artifacts.
+- reports/experiment_results.md
+- Training, persistence, and inference tests.
+
+Completion: Model can be trained, evaluated, saved, reloaded, and used for inference. If a dataset is unavailable, do not claim its real-data workflow is complete.
+
+PHASE 4 — Complete backend
+Actions:
+1. Verify health endpoint.
+2. Verify model readiness.
+3. Correct request validation.
+4. Correct inference and response handling.
+5. Handle missing artifacts and invalid input.
+6. Update API tests.
+7. Verify API documentation.
+
+Deliverables:
+- Working prediction API.
+- Accurate health/readiness reporting.
+- API tests.
+
+Completion: API produces valid predictions using the saved model and rejects invalid requests safely.
+
+PHASE 5 — Complete dashboard
+Actions:
+1. Verify backend connectivity.
+2. Verify configuration and metadata display.
+3. Connect dashboard to real prediction endpoint.
+4. Display actual predictions and metrics.
+5. Correct broken visualizations.
+6. Improve loading and error states.
+7. Verify backend/model-unavailable behavior.
+
+Deliverables:
+- Working Streamlit dashboard.
+- Real API integration.
+- Accurate visualizations and error handling.
+
+Completion: Users can interact with the real app without fabricated data.
+
+PHASE 6 — End-to-end verification
+Actions:
+1. Start backend.
+2. Start dashboard.
+3. Load trained model.
+4. Submit valid prediction request.
+5. Verify response.
+6. Verify dashboard integration.
+7. Test invalid inputs.
+8. Test missing model behavior.
+9. Run full test suite.
+10. Run real-data smoke tests for every claimed supported dataset.
+
+Deliverable: docs/FINAL_VERIFICATION.md, actual test results, end-to-end commands, and remaining limitations.
+
+Completion: Complete workflow exercised and actual behavior documented.
+
+PHASE 7 — Documentation and handover
+Actions:
+1. Update installation instructions.
+2. Document environment variables.
+3. Document dataset setup.
+4. Document training/evaluation.
+5. Document backend/dashboard startup.
+6. Document API usage.
+7. Document tests.
+8. Document limitations.
+9. Review Git diff.
+10. Ensure no unintended files or secrets were added.
+
+Deliverables:
+- Updated README or primary documentation.
+- Reproducible startup instructions.
+- API examples.
+- Experiment results.
+- Final verification report.
+
+Completion: Another developer can understand, start, test, and demonstrate the project.
+
+14. REQUIRED FINAL VERIFICATION REPORT
+--------------------------------------
+Create docs/FINAL_VERIFICATION.md.
+
+A. Implementation summary
+Explain what changed and why.
+
+B. Verified capabilities
+Use a table:
+Capability | Status | Evidence
+
+Include:
+- Application startup
+- Backend health
+- Dataset loading
+- Preprocessing
+- Model training
+- Model evaluation
+- Model persistence
+- Prediction API
+- Dashboard integration
+- Automated tests
+- Real-data validation
+
+Use Pass, Fail, or Blocked. Include commands and observed results. Do not mark a feature passing based only on code inspection when runtime testing is needed.
+
+C. Model results
+Record dataset, evaluation split, model, features, preprocessing, MAE, RMSE, training configuration, and reproduction command. All metrics must be measured.
+
+D. Defects corrected
+List original issue, correction, and verification.
+
+E. Known limitations
+Document incomplete work.
+
+F. Reproduction instructions
+Provide exact commands to install dependencies, configure, train if needed, start backend/dashboard, run tests, and reproduce metrics.
+
+15. RULES YOU MUST FOLLOW
+--------------------------
+1. Preserve working functionality. Prefer targeted fixes over unnecessary rewrites.
+2. Inspect before implementing. Read existing code before introducing modules, dependencies, endpoints, or configuration systems.
+3. Never fabricate test results, metrics, dataset availability, successful runs, or screenshots.
+4. Do not silently change research methodology. Document changes to data splits, RUL definitions, features, models, or evaluation.
+5. Prevent data leakage. Fit learned preprocessing on training data only.
+6. Keep training and inference consistent, including feature order and preprocessing.
+7. Do not substitute mock data for real functionality. Mocks are acceptable in tests, but must not be presented as real dashboard results.
+8. Avoid unnecessary dependencies.
+9. Do not destroy existing data or configuration. Do not delete datasets, artifacts, environment files, or user changes to make tests pass.
+10. Verify important changes with relevant tests.
+11. Do not claim full dataset support based only on synthetic tests.
+12. Do not stop at an attractive interface. Data pipeline, model, backend, and dashboard must work together.
+13. Keep changes traceable. Review git diff. Do not commit, push, or publish without explicit authorization.
+14. Report blockers honestly.
+15. Prioritize correctness over feature count.
+
+16. DEFINITION OF DONE
+---------------------
+Mark each item complete only when supported by appropriate evidence.
+
+Application:
+[ ] Installation instructions work.
+[ ] Backend starts.
+[ ] Dashboard starts.
+[ ] Dashboard communicates with backend.
+
+Data:
+[ ] Supported formats are documented.
+[ ] Schemas are validated.
+[ ] Feature selection is correct.
+[ ] RUL labels and predictions are aligned.
+[ ] Train/test leakage has been checked.
+[ ] Training and inference preprocessing are consistent.
+
+Machine learning:
+[ ] Baseline trains successfully.
+[ ] Metrics are calculated correctly.
+[ ] Model artifacts are saved.
+[ ] Artifacts reload successfully.
+[ ] Predictions work using the reloaded model.
+
+API/dashboard:
+[ ] API validates requests.
+[ ] Invalid input produces controlled errors.
+[ ] Model readiness is accurate.
+[ ] Dashboard displays genuine predictions.
+[ ] Results are labeled correctly.
+[ ] Missing resources are handled gracefully.
+
+Quality assurance:
+[ ] Unit tests executed.
+[ ] Integration tests executed.
+[ ] API tests executed.
+[ ] End-to-end testing performed.
+[ ] Real-data testing completed for every dataset claimed fully supported.
+
+Documentation:
+[ ] Audit complete.
+[ ] Baseline results recorded.
+[ ] Experiment results recorded.
+[ ] Startup instructions accurate.
+[ ] Final verification report complete.
+[ ] Known limitations disclosed.
+
+17. INSTRUCTIONS FOR YOUR FIRST RESPONSE
+----------------------------------------
+Before implementing anything, respond with a concise initial assessment based on repository inspection.
+
+Include:
+1. What exists: modules, data pipeline, model, backend, dashboard, and tests actually found.
+2. What works: functionality actually verified.
+3. What is broken or incomplete: evidence-based defects.
+4. What is unknown: anything not yet verified.
+5. Implementation sequence: first fixes and reasons.
+6. Potentially destructive operations: anything that could modify/delete user data, if relevant.
+
+Do not provide a generic assessment. Base it on the actual repository.
+
+After the assessment, proceed with implementation. Do not stop after writing the audit. Continue through the phases, testing each relevant change, until the project is verified or a genuine blocker is reached.
+
+Ordinary, reversible code changes needed for this plan do not require asking permission. Do not delete user data, expose secrets, overwrite important artifacts without a safe recovery path, or publish changes without authorization.
+
+18. FINAL HANDOVER
+------------------
+At the end, provide:
+1. What was implemented.
+2. Existing functionality preserved.
+3. Defects corrected.
+4. Tests executed and actual results.
+5. Measured MAE/RMSE for each completed experiment.
+6. Datasets verified using real data.
+7. How to start the application locally.
+8. How to reproduce training and evaluation.
+9. Model artifact and report locations.
+10. Remaining incomplete work and reasons.
+
+Include useful commands and file paths. Do not claim every issue is fixed unless evidence supports it.
+
+FINAL PRINCIPLE
+---------------
+A working application and a scientifically valid model are separate requirements. The app may start and display predictions while still having incorrect RUL labels, data leakage, or invalid evaluation.
+
+The expected outcome is not merely "AeroShield runs on localhost." It is:
+
+"AeroShield runs locally, its predictions come from a reproducibly trained model, its evaluation is methodologically sound, and its demonstrated capabilities are supported by test evidence."

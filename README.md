@@ -1,7 +1,7 @@
 # NASA C-MAPSS FD001 Turbofan Engine Degradation Predictive Maintenance ML Pipeline
 
-[![Model Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](file:///c:/Users/ASUS/Tensorflow/models/metadata.json)
-[![Build Status](https://img.shields.io/badge/tests-19%2F19%20passing-brightgreen.svg)](file:///c:/Users/ASUS/Tensorflow/tests/test_api_contract.py)
+[![Model Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](models/metadata.json)
+[![Build Status](https://img.shields.io/badge/tests-75%2F75%20passing-brightgreen.svg)](tests/)
 
 Production-grade modular Data & Machine Learning Pipeline for predicting Remaining Useful Life (RUL) of aircraft engines, supporting multiple datasets including the NASA C-MAPSS FD001 and CruiseBench (N-CMAPSS) benchmark datasets. Developed under Apple UI/UX presentation standards, Microsoft & Amazon software reliability, and zero-data-leakage engineering rigor.
 
